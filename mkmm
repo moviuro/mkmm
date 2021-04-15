@@ -17,11 +17,14 @@ will remove them during an upgrade
 -v : verbose (bash set -x)
 -f : force (see below)
 
-save       : use cp(1) to hardlink the kernel modules in a backup directory
-             (--archive --link)
--f save    : use cp --force
-restore    : use cp(1) to hardlink the backed-up kernel modules back in place
--f restore : use cp --force
+save       : use cp(1) to hardlink the kernel modules in a backup directory if
+             they aren't already backed up (--archive --link)
+-f save    : remove the existing backup if it exists, then use cp(1) --force to
+             hardlink the kernel modules in a backup directory
+restore    : use cp(1) to hardlink the backed-up kernel modules back in place if
+             they aren't found
+-f restore : remove the existing modules if they are found, then use cp(1)
+             --force to hardlink the backed-up kernel modules back in place
 clean      : rm(1) the backup directory
 -f clean   : use rm --force
 bleach     : rm(1) -rf modules' directories that don't belong to a pacman(8)
@@ -43,21 +46,31 @@ EOH
 __save() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
+  _dest="/usr/lib/modules/$_myname/$1"
 
   mkdir -p "/usr/lib/modules/$_myname"
-  cp --archive --link $_force -- \
-   "/usr/lib/modules/$1" "/usr/lib/modules/$_myname"
-  exit $?
+  if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
+    [[ -e "$_dest" ]] && rm --recursive --force "$_dest"
+    cp --archive --link $_force -- \
+     "/usr/lib/modules/$1" "$_dest"
+    _ret=$?
+  fi
+  exit "${_ret:-0}"
 }
 
 # __restore kver [force]
 __restore() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
+  _dest="/usr/lib/modules/$1"
 
-  cp --archive --link $_force -- \
-   "/usr/lib/modules/$_myname/$1" "/usr/lib/modules/$1"
-  exit $?
+  if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
+    [[ -e "$_dest" ]] && rm --recursive --force "$_dest"
+    cp --archive --link $_force -- \
+     "/usr/lib/modules/$_myname/$1" "$_dest"
+    _ret=$?
+  fi
+  exit "${_ret:-0}"
 }
 
 # __clean [force]
