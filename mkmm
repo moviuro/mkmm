@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+
+# Moviuro's Kernel Modules Manager
+# A successor to https://github.com/saber-nyan/kernel-modules-hook
+# Released under the MIT License
+
+_myname="mkmm"
+
+__usage(){
+  cat << EOH
+mkmm [-vf] save|restore|clean|bleach [kver]
+
+mkmm is Moviuro's Kernel Module Manager intended to be used in an
+alpm-hook(5) to save and restore the running kernel's modules because pacman(8)
+will remove them during an upgrade
+
+-v : verbose (bash set -x)
+-f : force (see below)
+
+save       : use cp(1) to hardlink the kernel modules in a backup directory
+             (--archive --link)
+-f save    : use cp --force
+restore    : use cp(1) to hardlink the backed-up kernel modules back in place
+-f restore : use cp --force
+clean      : rm(1) the backup directory
+-f clean   : use rm --force
+bleach     : rm(1) -rf modules' directories that don't belong to a pacman(8)
+             package, except for the currently running kernel
+-f bleach  : rm(1) -rf modules' directories that don't belong to a pacman(8)
+             package
+
+kver : an optional argument to specify which kernel modules to save;
+       defaults to the current running kernel (uname(1) -r)
+
+SEE ALSO
+
+https://bugs.archlinux.org/task/16702
+https://github.com/saber-nyan/kernel-modules-hook
+EOH
+}
+
+# __save kver [force]
+__save() {
+  : "${1?Missing kver}"
+  [[ -n "$2" ]] && _force="--force"
+
+  mkdir -p "/usr/lib/modules/$_myname"
+  cp --archive --link $_force -- \
+   "/usr/lib/modules/$1" "/usr/lib/modules/$_myname"
+  exit $?
+}
+
+# __restore kver [force]
+__restore() {
+  : "${1?Missing kver}"
+  [[ -n "$2" ]] && _force="--force"
+
+  cp --archive --link $_force -- \
+   "/usr/lib/modules/$_myname" "/usr/lib/modules/$1"
+  exit $?
+}
+
+# __clean [force]
+__clean() {
+  [[ -n "$1" ]] && _force="--force"
+
+  rm --recursive $_force -- "/usr/lib/modules/$_myname"
+  exit $?
+}
+
+# __bleach [force]
+__bleach() {
+  [[ -n "$1" ]] && _force="--force"
+  _ret=0
+
+  while IFS='' read -r _moddir; do
+    if ! pacman -Qqo "$_moddir" >/dev/null 2>&1; then
+      if [[ "$_moddir" != "/usr/lib/modules/$(uname -r)" ]] ||
+         [[ -n "$_force" ]]; then
+        rm --recursive --force -- "$_moddir"
+        ((_ret+=$?))
+      fi
+    fi
+  done < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)
+  exit "$_ret"
+}
+
+_force=""
+while getopts ":vfh" _opt; do
+  case "$_opt" in
+    h) __usage ; exit 0     ;;
+    f) _force=1             ;;
+    v) set -x               ;;
+    *) __usage >&2 ; exit 1 ;;
+  esac
+done
+
+shift "$((OPTIND - 1))"
+_kver="${2:-"$(uname -r)"}"
+
+case "$1" in
+  save) __save "$_kver" "$_force" ;;
+  restore) __restore "$_kver" "$_force" ;;
+  clean) __clean "$_force" ;;
+  bleach) __bleach "$_force" ;;
+  *) __usage >&2 ; exit 1 ;;
+esac
