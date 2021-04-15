@@ -56,7 +56,7 @@ __restore() {
   [[ -n "$2" ]] && _force="--force"
 
   cp --archive --link $_force -- \
-   "/usr/lib/modules/$_myname" "/usr/lib/modules/$1"
+   "/usr/lib/modules/$_myname/$1" "/usr/lib/modules/$1"
   exit $?
 }
 
