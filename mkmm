@@ -46,13 +46,13 @@ EOH
 __save() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
-  _dest="/usr/lib/modules/$_myname/$1"
+  _dest="/usr/lib/modules/$_myname-$1"
 
-  mkdir -p "/usr/lib/modules/$_myname"
+  mkdir -p "$_dest"
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     [[ -e "$_dest" ]] && rm --recursive --force "$_dest"
     cp --archive --link $_force -- \
-     "/usr/lib/modules/$1" "$_dest"
+     "/usr/lib/modules/$1/." "$_dest"
     _ret=$?
   fi
   exit "${_ret:-0}"
@@ -75,9 +75,10 @@ __restore() {
 
 # __clean [force]
 __clean() {
-  [[ -n "$1" ]] && _force="--force"
+  : "${1?Missing kver}"
+  [[ -n "$2" ]] && _force="--force"
 
-  rm --recursive $_force -- "/usr/lib/modules/$_myname"
+  rm --recursive $_force -- "/usr/lib/modules/$_myname-$1"
   exit $?
 }
 
@@ -114,7 +115,7 @@ _kver="${2:-"$(uname -r)"}"
 case "$1" in
   save) __save "$_kver" "$_force" ;;
   restore) __restore "$_kver" "$_force" ;;
-  clean) __clean "$_force" ;;
+  clean) __clean "$_kver" "$_force" ;;
   bleach) __bleach "$_force" ;;
   *) __usage >&2 ; exit 1 ;;
 esac
