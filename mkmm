@@ -149,7 +149,14 @@ __clean() {
 # __bleach [force]
 __bleach() {
   [[ -n "$1" ]] && _force="--force"
+  _k=$(uname -r)
   _ret=0
+
+  if ! [[ -e "/usr/lib/modules/$_k" ]] && [[ -z "$_force" ]]; then
+    printf '%s\n' \
+     "/usr/lib/modules/$_k does not exist, are you sure you want to clean?" >&2
+    exit 11
+  fi
 
   while IFS='' read -r _moddir; do
     if ! pacman -Qqo "$_moddir" >/dev/null 2>&1; then
