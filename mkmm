@@ -81,7 +81,7 @@ __tsave() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
   _dest="/usr/lib/modules/$_myname-$1"
-i
+
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     mkdir -p "$_dest"
