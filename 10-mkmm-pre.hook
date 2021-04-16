@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Saving Linux kernel modules...
+When = PreTransaction
+Depends = mkmm
+Exec = /usr/bin/mkmm save

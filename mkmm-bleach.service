@@ -1,0 +1,9 @@
+[Unit]
+Description=Clean up modules from old kernels
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/mkmm bleach
+
+[Install]
+WantedBy=basic.target
