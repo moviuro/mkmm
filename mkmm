@@ -87,7 +87,6 @@ __tsave() {
     mkdir -p "$_dest"
     mount -t tmpfs -o rw,nodev,nosuid,mode=755 tmpfs "$_dest"
     cp -a "/usr/lib/modules/$1/." "$_dest" || exit 6
-    mount -o remount,ro "$_dest" || exit 7
   fi
 }
 
