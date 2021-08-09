@@ -65,7 +65,7 @@ __remove() {
 __save() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
-  _dest="/usr/lib/modules/$_myname-$1"
+  _dest="/usr/lib/$_myname/$1"
 
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
@@ -80,7 +80,7 @@ __save() {
 __tsave() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
-  _dest="/usr/lib/modules/$_myname-$1"
+  _dest="/usr/lib/$_myname/$1"
 
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
@@ -96,15 +96,15 @@ __restore() {
   [[ -n "$2" ]] && _force="--force"
   _dest="/usr/lib/modules/$1"
 
-  if ! [[ -e "/usr/lib/modules/$_myname-$1" ]]; then
-    printf '%s\n' "/usr/lib/modules/$_myname-$1 for restoring not found" >&2
+  if ! [[ -e "/usr/lib/$_myname/$1" ]]; then
+    printf '%s\n' "/usr/lib/$_myname/$1 for restoring not found" >&2
     exit 8
   fi
 
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     cp --archive --link $_force -- \
-     "/usr/lib/modules/$_myname-$1" "$_dest"
+     "/usr/lib/$_myname/$1" "$_dest"
     _ret=$?
   fi
   exit "${_ret:-0}"
@@ -116,15 +116,15 @@ __trestore() {
   [[ -n "$2" ]] && _force="--force"
   _dest="/usr/lib/modules/$1"
 
-  if ! [[ -e "/usr/lib/modules/$_myname-$1" ]]; then
-    printf '%s\n' "/usr/lib/modules/$_myname-$1 for restoring not found" >&2
+  if ! [[ -e "/usr/lib/$_myname/$1" ]]; then
+    printf '%s\n' "/usr/lib/$_myname/$1 for restoring not found" >&2
     exit 9
   fi
 
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     mkdir "$_dest"
-    mount -o bind "/usr/lib/modules/$_myname-$1" "$_dest"
+    mount -o bind "/usr/lib/$_myname/$1" "$_dest"
     _ret=$?
   fi
   exit "${_ret:-0}"
@@ -134,7 +134,7 @@ __trestore() {
 __clean() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
-  _dest="/usr/lib/modules/$_myname-$1"
+  _dest="/usr/lib/$_myname/$1"
 
   if ! [[ -e "/usr/lib/modules/$1" ]] && [[ -z "$_force" ]]; then
     printf '%s\n' \
@@ -157,6 +157,8 @@ __bleach() {
     exit 11
   fi
 
+  # Clean /usr/lib/modules: if we're here, we can remove every directory not
+  # managed by pacman(8)
   while IFS='' read -r _moddir; do
     if ! pacman -Qqo "$_moddir" >/dev/null 2>&1; then
       if [[ "$_moddir" != "/usr/lib/modules/$(uname -r)" ]] ||
@@ -166,6 +168,11 @@ __bleach() {
       fi
     fi
   done < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)
+  # Clean our directory. Anything inside can be removed because we checked that
+  # /usr/lib/modules/$(uname -r) still exists
+  while IFS='' read -r _moddir; do
+    __remove "$_moddir"
+  done < <(find "/usr/lib/$_myname" -mindepth 1 -maxdepth 1 -type d)
   exit "$_ret"
 }
 
