@@ -82,11 +82,17 @@ __tsave() {
   [[ -n "$2" ]] && _force="--force"
   _dest="/usr/lib/$_myname/$1"
 
-  if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
+  if ! [[ -e "/usr/lib/modules/$1/." ]]; then
+    printf '%s\n' "/usr/lib/$1 $(tput setaf 1)missing, can’t backup$(tput sgr0)" >&2
+    exit 61
+  elif ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     mkdir -p "$_dest"
     mount -t tmpfs -o rw,nodev,nosuid,mode=755 tmpfs "$_dest"
     cp -a "/usr/lib/modules/$1/." "$_dest" || exit 6
+  else
+    printf '%s\n' "$_dest $(tput setaf 3)backup already exists$(tput sgr0)" >&2
+    exit 62
   fi
 }
 
@@ -126,6 +132,14 @@ __trestore() {
     mkdir "$_dest"
     mount -o bind "/usr/lib/$_myname/$1" "$_dest"
     _ret=$?
+  else
+    if ! [[ $(mountpoint $_dest) ]]; then
+      printf '%s\n' "$_dest $(tput setaf 4)backup was already mounted$(tput sgr0)" >&2
+      exit 91
+    else
+      printf '%s\n' "$_dest already exists but is no mountpoint, $(tput setaf 1)can’t restore backup$(tput sgr0)" >&2
+      exit 92
+    fi
   fi
   exit "${_ret:-0}"
 }
