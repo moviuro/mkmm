@@ -150,9 +150,9 @@ __clean() {
   [[ -n "$2" ]] && _force="--force"
   _dest="/usr/lib/$_myname/$1"
 
-  if ! [[ -e "/usr/lib/modules/$1" ]] && [[ -z "$_force" ]]; then
+  if ! [[ -e "/usr/lib/modules/$1" ]] && [[ -e "$_dest" ]] && [[ -z "$_force" ]]; then
     printf '%s\n' \
-     "/usr/lib/modules/$1 does not exist, are you sure you want to clean?" >&2
+     "/usr/lib/modules/$1 does not exist, are you sure you want to clean backups? (not removing without --force)" >&2
     exit 10
   fi
 
