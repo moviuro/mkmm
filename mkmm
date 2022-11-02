@@ -175,8 +175,11 @@ __bleach() {
   # managed by pacman(8)
   while IFS='' read -r _moddir; do
     if ! pacman -Qqo "$_moddir" >/dev/null 2>&1; then
-      if [[ "$_moddir" != "/usr/lib/modules/$(uname -r)" ]] ||
-         [[ -n "$_force" ]]; then
+      if [[ "$_moddir" == "/usr/lib/modules/$(uname -r)" ]] && [[ -z "$_force" ]]; then
+        printf '%s\n' \
+         "/usr/lib/modules/$_k is the current kernel. (not removing without --force)" >&2
+        exit 12
+      else
         __remove "$_moddir"
         ((_ret+=$?))
       fi
