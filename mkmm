@@ -173,9 +173,11 @@ __bleach() {
   exit "$_ret"
 }
 
+_check=""
 _force=""
-while getopts ":vfh" _opt; do
+while getopts ":vfhc" _opt; do
   case "$_opt" in
+    c) _check=1             ;;
     h) __usage ; exit 0     ;;
     f) _force=1             ;;
     v) set -x               ;;
@@ -185,6 +187,11 @@ done
 
 shift "$((OPTIND - 1))"
 _kver="${2:-"$(uname -r)"}"
+
+if [[ "$2" && ("$_kver" != "$(uname -r)") ]]; then
+  printf '%s\n' "$_kver is not our kernel → nothing to do" >&2
+  exit "${_force:-0}"
+fi
 
 case "$1" in
   save) __save "$_kver" "$_force" ;;

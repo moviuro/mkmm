@@ -8,4 +8,4 @@ Target = usr/lib/modules/*/vmlinuz
 Description = Restoring Linux kernel modules...
 When = PostTransaction
 Depends = mkmm
-Exec = /usr/bin/mkmm restore
+Exec = /usr/bin/mkmm -c restore

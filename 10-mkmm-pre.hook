@@ -8,4 +8,4 @@ Target = usr/lib/modules/*/vmlinuz
 Description = Saving Linux kernel modules...
 When = PreTransaction
 Depends = mkmm
-Exec = /usr/bin/mkmm save
+Exec = /usr/bin/mkmm -c save
