@@ -5,7 +5,9 @@
 # Released under the MIT License
 
 _myname='mkmm'
-_bakpath="/tmp/mkmm"
+_confpath="/etc/$_myname.conf"
+source $_confpath || true
+_bakpath=${_bakpath:-"/usr/lib/$_myname"}
 
 __usage(){
   cat << EOH
