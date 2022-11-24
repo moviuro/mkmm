@@ -56,11 +56,11 @@ __remove() {
 
   if [[ -e "$1" ]]; then
     if findmnt "$1" >/dev/null; then
-      umount "$1"
-      rmdir "$1"
+      umount $_verbose "$1"
     else
-      rm --recursive --force "$1"
+      rm --recursive --force "$1"/*
     fi
+    rmdir $_verbose "$1"
   fi
 }
 
