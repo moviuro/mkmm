@@ -52,7 +52,7 @@ __remove() {
   : "${1?Missing target}"
 
   if [[ -e "$1" ]]; then
-    if findmnt "$1" >/dev/null; then
+    if mountpoint -q "$1"; then
       umount $_verbose "$1"
     else
       rm --recursive --force "$1"/*
