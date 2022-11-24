@@ -92,6 +92,7 @@ __tsave() {
     __remove "$_dest"
     mkdir -p "$_dest"
     cp -a "/usr/lib/modules/$1/." "$_dest" || exit 6
+    [[ -z "$_verbose" ]] || printf '%s\n' "$_dest $(tput setaf 2)backed up$(tput sgr0)"
   else
     printf '%s\n' "$_dest $(tput setaf 3)backup already exists$(tput sgr0)" >&2
     exit 62
@@ -126,7 +127,7 @@ __trestore() {
   _dest="/usr/lib/modules/$1"
 
   if ! [[ -e "$_src" ]]; then
-    printf '%s\n' "$_src for restoring not found" >&2
+    printf '%s\n' "$_src $(tput setaf 1)for restoring not found$(tput sgr0)" >&2
     exit 9
   fi
 
@@ -135,6 +136,9 @@ __trestore() {
     mkdir "$_dest"
     mount --bind "$_src" "$_dest"
     _ret=$?
+    if [[ "$_ret" == 0 ]]; then
+      [[ -z "$_verbose" ]] || printf '%s\n' "$_dest $(tput setaf 2)mounted from backup$(tput sgr0)"
+    fi
   else
     if ! [[ $(mountpoint $_dest) ]]; then
       printf '%s\n' "$_dest $(tput setaf 4)backup was already mounted$(tput sgr0)" >&2
