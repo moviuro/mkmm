@@ -11,7 +11,7 @@ _bakpath=${_bakpath:-"/usr/lib/$_myname"}
 
 __usage(){
   cat << EOH
-mkmm [-vf] save|restore|tsave|trestore|clean|bleach [kver]
+mkmm [-vf] save|restore|clean|bleach [kver]
 
 mkmm is Moviuro's Kernel Module Manager intended to be used in an
 alpm-hook(5) to save and restore the running kernel's modules because pacman(8)
@@ -22,23 +22,20 @@ will remove them during an upgrade
 
 save       : use cp(1) to hardlink the kernel modules in a backup directory if
              they aren't already backed up (--archive --link)
--f save    : remove the existing backup if it exists, then use cp(1) --force to
-             hardlink the kernel modules in a backup directory
+-f save    : remove the existing backup if it exists, then save
+-f restore : remove the current modules' directory, then restore
+
 tsave      : use cp(1) and tmpfs(5) to copy the kernel modules in a temporary
              filesystem if it doesn't yet exist
--f tsave   : remove the existing backup if it exists, then tsave
+restore    : use bind mount(8) to move the tsave-d tmpfs(5) back in place if
+             needed
 restore    : use cp(1) to hardlink the backed-up kernel modules back in place if
              they aren't found
--f restore : remove the existing modules if they are found, then use cp(1)
-             --force to hardlink the backed-up kernel modules back in place
-trestore   : use bind mount(8) to move the tsave-d tmpfs(5) back in place if
-             needed
--f trestore: remove the current modules' directory, then trestore
+
 clean      : remove the backup directory (rm(1) or umount && rmdir)
 bleach     : rm(1) -rf modules' directories that don't belong to a pacman(8)
              package, except for the currently running kernel
--f bleach  : rm(1) -rf modules' directories that don't belong to a pacman(8)
-             package
+-f bleach  : like modclean, but including the current running kernel
 
 kver : an optional argument to specify which kernel modules to save;
        defaults to the current running kernel (uname(1) -r)
@@ -68,30 +65,16 @@ __remove() {
 __save() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
-  _dest="/usr/lib/$_myname/$1"
-
-  if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
-    __remove "$_dest"
-    cp --archive --link $_force -- \
-     "/usr/lib/modules/$1/." "$_dest"
-    _ret=$?
-  fi
-  exit "${_ret:-0}"
-}
-
-# __tsave kver [force]
-__tsave() {
-  : "${1?Missing kver}"
-  [[ -n "$2" ]] && _force="--force"
+  _src="/usr/lib/modules/$1"
   _dest="$_bakpath/$1"
 
-  if ! [[ -e "/usr/lib/modules/$1/." ]]; then
+  if ! [[ -e "$_src/." ]]; then
     printf '%s\n' "/usr/lib/$1 $(tput setaf 1)missing, can’t backup$(tput sgr0)" >&2
     exit 61
   elif ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
-    mkdir -p "$_dest"
-    cp -a "/usr/lib/modules/$1/." "$_dest" || exit 6
+    _hardlinks=$([[ $(stat -c "%d" "$_src") != $(stat -c "%d" "$_bakpath") ]] || echo '--link')
+    cp --archive $_hardlinks "$_src" "$_dest" || exit 6
     [[ -z "$_verbose" ]] || printf '%s\n' "$_dest $(tput setaf 2)backed up$(tput sgr0)"
   else
     printf '%s\n' "$_dest $(tput setaf 3)backup already exists$(tput sgr0)" >&2
@@ -101,26 +84,6 @@ __tsave() {
 
 # __restore kver [force]
 __restore() {
-  : "${1?Missing kver}"
-  [[ -n "$2" ]] && _force="--force"
-  _dest="/usr/lib/modules/$1"
-
-  if ! [[ -e "/usr/lib/$_myname/$1" ]]; then
-    printf '%s\n' "/usr/lib/$_myname/$1 for restoring not found" >&2
-    exit 8
-  fi
-
-  if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
-    __remove "$_dest"
-    cp --archive --link $_force -- \
-     "/usr/lib/$_myname/$1" "$_dest"
-    _ret=$?
-  fi
-  exit "${_ret:-0}"
-}
-
-# __trestore kver [force]
-__trestore() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
   _src="$_bakpath/$1"
@@ -137,22 +100,28 @@ __trestore() {
     exit 93
   elif ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
-    mkdir "$_dest"
-    mount --bind "$_src" "$_dest"
-    _ret=$?
-    if [[ "$_ret" == 0 ]]; then
-      [[ -z "$_verbose" ]] || printf '%s\n' "$_dest $(tput setaf 2)mounted from backup$(tput sgr0)"
-    fi
+
+    [[ $(stat -c "%d" "$_src") == $(stat -c "%d" "/usr/lib/modules") ]] \
+      && cp --archive --link $_force -- "$_src" "$_dest" \
+      || (mkdir "$_dest" && mount --bind "$_src" "$_dest") \
+      || exit $?
+    [[ -z "$_verbose" ]] || printf '%s\n' "$_dest $(tput setaf 2)restored from backup$(tput sgr0) $_src"
   else
-    if ! [[ $(mountpoint $_dest) ]]; then
-      printf '%s\n' "$_dest $(tput setaf 4)backup was already mounted$(tput sgr0)" >&2
+    if mountpoint ${_verbose:+-q} "$_dest"; then
+      if [[ $(stat -c "%d" "$_src") != $(stat -c "%d" "$_dest") ]]; then
+        printf '%s\n' "$_dest is a moundpoint, but not to our backup location $_src; $(tput setaf 1)can’t restore backup$(tput sgr0)" >&2
+        findmnt "$_dest"
+        exit 94
+      fi
+      printf '%s\n' "$_dest $(tput setaf 4)backup is already mounted$(tput sgr0) from $_src" >&2
+    elif [[ -n $(find "$_dest" -samefile "$_src"/vmlinuz) ]]; then
+      printf '%s\n' "$_dest $(tput setaf 4)backup is already linked$(tput sgr0) from $_src" >&2
       exit 91
     else
-      printf '%s\n' "$_dest already exists but is no mountpoint, $(tput setaf 1)can’t restore backup$(tput sgr0)" >&2
+      printf '%s\n' "$_dest already exists, $(tput setaf 1)can’t restore backup$(tput sgr0)" >&2
       exit 92
     fi
   fi
-  exit "${_ret:-0}"
 }
 
 # __clean kver [force]
@@ -219,9 +188,7 @@ _kver="${2:-"$(uname -r)"}"
 
 case "$1" in
   save) __save "$_kver" "$_force" ;;
-  tsave) __tsave "$_kver" "$_force" ;;
   restore) __restore "$_kver" "$_force" ;;
-  trestore) __trestore "$_kver" "$_force" ;;
   clean) __clean "$_kver" "$_force" ;;
   bleach) __bleach "$_force" ;;
   *) __usage >&2 ; exit 1 ;;
