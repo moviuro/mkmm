@@ -11,7 +11,7 @@ _bakpath=${_bakpath:-"/usr/lib/$_myname"}
 
 __usage(){
   cat << EOH
-mkmm [-vf] save|restore|clean|bleach [kver]
+mkmm [-vf] save|restore|bakclean|modclean [kver]
 
 mkmm is Moviuro's Kernel Module Manager intended to be used in an
 alpm-hook(5) to save and restore the running kernel's modules because pacman(8)
@@ -32,10 +32,10 @@ restore    : use bind mount(8) to move the tsave-d tmpfs(5) back in place if
 restore    : use cp(1) to hardlink the backed-up kernel modules back in place if
              they aren't found
 
-clean      : remove the backup directory (rm(1) or umount && rmdir)
-bleach     : rm(1) -rf modules' directories that don't belong to a pacman(8)
+bakclean      : remove the backup directory (rm(1) or umount && rmdir)
+modclean     : rm(1) -rf modules' directories that don't belong to a pacman(8)
              package, except for the currently running kernel
--f bleach  : like modclean, but including the current running kernel
+-f modclean  : like modclean, but including the current running kernel
 
 kver : an optional argument to specify which kernel modules to save;
        defaults to the current running kernel (uname(1) -r)
@@ -124,8 +124,8 @@ __restore() {
   fi
 }
 
-# __clean kver [force]
-__clean() {
+# __bakclean kver [force]
+__bakclean() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
   _dest="$_bakpath/$1"
@@ -139,8 +139,8 @@ __clean() {
   __remove "$_dest"
 }
 
-# __bleach [force]
-__bleach() {
+# __modclean [force]
+__modclean() {
   [[ -n "$1" ]] && _force="--force"
   _k=$(uname -r)
   _ret=0
@@ -165,11 +165,6 @@ __bleach() {
       fi
     fi
   done < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)
-  # Clean our directory. Anything inside can be removed because we checked that
-  # /usr/lib/modules/$(uname -r) still exists
-  while IFS='' read -r _moddir; do
-    __remove "$_moddir"
-  done < <(find "/usr/lib/$_myname" -mindepth 1 -maxdepth 1 -type d)
   exit "$_ret"
 }
 
@@ -196,7 +191,7 @@ fi
 case "$1" in
   save) __save "$_kver" "$_force" ;;
   restore) __restore "$_kver" "$_force" ;;
-  clean) __clean "$_kver" "$_force" ;;
-  bleach) __bleach "$_force" ;;
+  bakclean) __bakclean "$_kver" "$_force" ;;
+  modclean) __modclean "$_force" ;;
   *) __usage >&2 ; exit 1 ;;
 esac
