@@ -4,7 +4,8 @@
 # A successor to https://github.com/saber-nyan/kernel-modules-hook
 # Released under the MIT License
 
-_myname="mkmm"
+_myname='mkmm'
+_bakpath="/tmp/mkmm"
 
 __usage(){
   cat << EOH
@@ -80,7 +81,7 @@ __save() {
 __tsave() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
-  _dest="/usr/lib/$_myname/$1"
+  _dest="$_bakpath/$1"
 
   if ! [[ -e "/usr/lib/modules/$1/." ]]; then
     printf '%s\n' "/usr/lib/$1 $(tput setaf 1)missing, can’t backup$(tput sgr0)" >&2
@@ -88,7 +89,6 @@ __tsave() {
   elif ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     mkdir -p "$_dest"
-    mount -t tmpfs -o rw,nodev,nosuid,mode=755 tmpfs "$_dest"
     cp -a "/usr/lib/modules/$1/." "$_dest" || exit 6
   else
     printf '%s\n' "$_dest $(tput setaf 3)backup already exists$(tput sgr0)" >&2
@@ -120,17 +120,18 @@ __restore() {
 __trestore() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
+  _src="$_bakpath/$1"
   _dest="/usr/lib/modules/$1"
 
-  if ! [[ -e "/usr/lib/$_myname/$1" ]]; then
-    printf '%s\n' "/usr/lib/$_myname/$1 for restoring not found" >&2
+  if ! [[ -e "$_src" ]]; then
+    printf '%s\n' "$_src for restoring not found" >&2
     exit 9
   fi
 
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     mkdir "$_dest"
-    mount -o bind "/usr/lib/$_myname/$1" "$_dest"
+    mount --bind "$_src" "$_dest"
     _ret=$?
   else
     if ! [[ $(mountpoint $_dest) ]]; then
@@ -148,7 +149,7 @@ __trestore() {
 __clean() {
   : "${1?Missing kver}"
   [[ -n "$2" ]] && _force="--force"
-  _dest="/usr/lib/$_myname/$1"
+  _dest="$_bakpath/$1"
 
   if ! [[ -e "/usr/lib/modules/$1" ]] && [[ -e "$_dest" ]] && [[ -z "$_force" ]]; then
     printf '%s\n' \
