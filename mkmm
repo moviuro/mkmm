@@ -131,7 +131,11 @@ __trestore() {
     exit 9
   fi
 
-  if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
+  if ! [[ -O "$_src" ]] || [[ ! -G "$_src" ]]; then
+    printf '%s\n' "$_src $(tput setaf 1)has dubious ownerhsip, won’t restore$(tput sgr0)" >&2
+    ls -dl $_src
+    exit 93
+  elif ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     mkdir "$_dest"
     mount --bind "$_src" "$_dest"
