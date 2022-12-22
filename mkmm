@@ -47,16 +47,30 @@ https://github.com/saber-nyan/kernel-modules-hook
 EOH
 }
 
+__mark_mine () {
+  touch "$1/.$_myname"
+}
+
+__is_mine () {
+  [[ -e "$1/.$_myname" ]]
+}
+
 # We handle regular directories and mountpoints too...
 __remove() {
   : "${1?Missing target}"
 
   if [[ -e "$1" ]]; then
-    if findmnt "$1" >/dev/null; then
-      umount "$1"
-      rmdir "$1"
+    if ! __is_mine "$1"; then
+      echo "$1 wasn't created by mkmm, not removing it" >&2
+      return 1
     else
-      rm --recursive --force "$1"
+      if findmnt "$1" >/dev/null; then
+        umount "$1"
+        rm "$1/.$_myname"
+        rmdir "$1"
+      else
+        rm --recursive --force "$1"
+      fi
     fi
   fi
 }
@@ -72,6 +86,7 @@ __save() {
     cp --archive --link $_force -- \
      "/usr/lib/modules/$1/." "$_dest"
     _ret=$?
+    __mark_mine "$_dest"
   fi
   exit "${_ret:-0}"
 }
@@ -85,8 +100,10 @@ __tsave() {
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     mkdir -p "$_dest"
+    __mark_mine "$_dest" # The token is committed to disk, this is intentional
     mount -t tmpfs -o rw,nodev,nosuid,mode=755 tmpfs "$_dest"
     cp -a "/usr/lib/modules/$1/." "$_dest" || exit 6
+    __mark_mine "$_dest"
   fi
 }
 
@@ -172,6 +189,7 @@ __bleach() {
   # /usr/lib/modules/$(uname -r) still exists
   while IFS='' read -r _moddir; do
     __remove "$_moddir"
+    ((_ret+=$?))
   done < <(find "/usr/lib/$_myname" -mindepth 1 -maxdepth 1 -type d)
   exit "$_ret"
 }
