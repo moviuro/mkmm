@@ -9,4 +9,5 @@ Description = Saving Linux kernel modules...
 When = PreTransaction
 Depends = mkmm
 Exec = /bin/sh -c 'xargs dirname | xargs basename -a | sort -u | xargs -l mkmm -c save'
+AbortOnFail
 NeedsTargets
