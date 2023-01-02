@@ -3,7 +3,7 @@ Description=Clean up modules from old kernels
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/mkmm bleach
+ExecStart=/usr/bin/mkmm modclean
 
 [Install]
 WantedBy=basic.target
