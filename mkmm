@@ -73,6 +73,7 @@ __save() {
     exit 61
   elif ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
+    mkdir -p $_verbose $_bakpath
     _hardlinks=$([[ $(stat -c "%d" "$_src") != $(stat -c "%d" "$_bakpath") ]] || echo '--link')
     cp --archive $_hardlinks "$_src" "$_dest" || exit 6
     [[ -z "$_verbose" ]] || printf '%s\n' "$_dest $(tput setaf 2)backed up$(tput sgr0)"
