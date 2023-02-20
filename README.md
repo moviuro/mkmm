@@ -39,7 +39,7 @@ Benchmark #1: ./mkmm restore
 ```
 # cd /etc/pacman.d/hooks
 # ln -s /usr/share/mkmm/10-mkmm-pre.hook
-# ln -s /usr/share/mkmm/10-mkmm-post.hook
+# ln -s /usr/share/mkmm/65-mkmm-post.hook
 # systemctl enable mkmm-bleach.service
 ```
 
@@ -67,6 +67,6 @@ Benchmark #1: ./mkmm trestore
 ```
 # cd /etc/pacman.d/hooks
 # ln -s /usr/share/mkmm/10-mkmm-tmpfs-pre.hook
-# ln -s /usr/share/mkmm/10-mkmm-tmpfs-post.hook
+# ln -s /usr/share/mkmm/65-mkmm-tmpfs-post.hook
 # systemctl enable mkmm-bleach.service
 ```
