@@ -141,6 +141,7 @@ __trestore() {
   if ! [[ -e "$_dest" ]] || [[ -n "$_force" ]]; then
     __remove "$_dest"
     mkdir "$_dest"
+    __mark_mine "$_dest" # This token is committed to disk
     mount -o bind "/usr/lib/$_myname/$1" "$_dest"
     _ret=$?
   fi
